@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "yolo26-rgb"
+version = "0.1.0"
+description = "YOLO26's dense depth-estimation head repurposed for 3-channel RGB image restoration (denoising, dehazing, deraining), built on ClearView"
+readme = "README.md"
+requires-python = ">=3.8"
+license = "AGPL-3.0-only"
+authors = [
+    {name = "Saumya Saksena", email = "kumaar324@gmail.com"}
+]
+maintainers = [
+    {name = "Saumya Saksena", email = "kumaar324@gmail.com"}
+]
+keywords = [
+    "deep-learning",
+    "computer-vision",
+    "image-restoration",
+    "image-deraining",
+    "rain-removal",
+    "yolo",
+    "dense-regression",
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Image Processing",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
+]
+
+dependencies = [
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    "clearview @ git+https://github.com/dronefreak/clearview.git",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.3.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.3.0",
+    "ruff>=0.0.270",
+]
+
+[project.scripts]
+yolo26-rgb-train = "yolo26_rgb.scripts.train:main"
+yolo26-rgb-evaluate = "yolo26_rgb.scripts.evaluate:main"
+
+[tool.setuptools.packages.find]
+include = ["yolo26_rgb*"]
