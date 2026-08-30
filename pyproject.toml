@@ -40,6 +40,7 @@ classifiers = [
 
 dependencies = [
     "torch>=2.0.0",
+    "huggingface_hub>=0.20.0",  # YOLO26RGB.from_pretrained() only
 ]
 
 [project.optional-dependencies]

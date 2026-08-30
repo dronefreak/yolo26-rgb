@@ -4,13 +4,38 @@ YOLO26's dense depth-estimation head, repurposed to output 3-channel RGB instead
 
 ## Quickstart
 
+End to end - load the model, derain one image, write a PNG (`pip install pillow` for the image I/O):
+
 ```python
+import numpy as np, torch
+from PIL import Image
 from yolo26_rgb import YOLO26RGB
 
-model = YOLO26RGB("yolo26n-depth.pt")  # downloads + loads the depth-pretrained backbone automatically
+model = YOLO26RGB.from_pretrained("dronefreak/yolo26-rgb-s")  # or "dronefreak/yolo26-rgb-n"
+
+# rainy image -> (1, 3, H, W) float in [0, 1]
+img = Image.open("assets/rain_teotihuacan_pyramids.jpg").convert("RGB")
+x = torch.from_numpy(np.array(img)).permute(2, 0, 1).float().div(255).unsqueeze(0)
+
+with torch.no_grad():
+    y = model(x).clamp(0, 1)          # residual output isn't bounded to [0, 1] - clamp it
+
+out = y[0].mul(255).round().byte().permute(1, 2, 0).numpy()
+Image.fromarray(out).save("derained.png")
 ```
 
-`model(image_tensor)` takes `(B, 3, H, W)` in `[0, 1]` and returns a bare `(B, 3, H, W)` tensor - no dict, no metadata, any input size (internally padded to a multiple of 32 and cropped back). Nothing else to unpack, so it drops straight into an existing restoration pipeline. One thing to know: the output itself is **not** clamped to `[0, 1]` (`RGBHead` predicts a residual correction added to the input, NAFNet/Restormer-style, rather than regressing a bounded image directly) - `.clamp(0, 1)` before saving/displaying as an image.
+`from_pretrained` parses the scale from the repo id, pulls `yolo26{scale}-rgb.pt` from the Hub (via `huggingface_hub`, cached normally), loads the trained weights, and returns the model in `eval()` mode on CPU - `.to("cuda")` afterwards if you want the GPU.
+
+`model(x)` takes `(B, 3, H, W)` in `[0, 1]` and returns a bare `(B, 3, H, W)` tensor - no dict, no metadata, any input size (internally padded to a multiple of 32 and cropped back). Nothing else to unpack, so it drops straight into an existing restoration pipeline. One thing to know: the output itself is **not** clamped to `[0, 1]` (`RGBHead` predicts a residual correction added to the input, NAFNet/Restormer-style, rather than regressing a bounded image directly) - `.clamp(0, 1)` before saving/displaying as an image, as above.
+
+## Models
+
+| Model          | Params | Avg PSNR (9 rain-only) | Hugging Face                                                                |
+| -------------- | ------ | ---------------------- | --------------------------------------------------------------------------- |
+| `yolo26_rgb_n` | 5.25M  | 30.83                  | [`dronefreak/yolo26-rgb-n`](https://huggingface.co/dronefreak/yolo26-rgb-n) |
+| `yolo26_rgb_s` | 12.13M | 30.95                  | [`dronefreak/yolo26-rgb-s`](https://huggingface.co/dronefreak/yolo26-rgb-s) |
+
+`YOLO26RGB.from_pretrained(repo_id)` is the trained-model path (above). To build an **untrained** model instead - to train your own - use `YOLO26RGB(scale="s")` for random init, or `YOLO26RGB("yolo26s-depth.pt")` to start from YOLO26's depth-pretrained backbone with a random head (see the `yolo26_rgb.models.pretrained` module docstring for the lower-level download/extract/load functions).
 
 ## Why this exists
 
@@ -18,7 +43,7 @@ Detection and segmentation backbones are usually evaluated for cross-task transf
 
 ## Examples
 
-Real photos, not part of the eval set below (`yolo26_rgb_s`, the best-performing scale):
+Real photos, not part of the eval set below (`yolo26_rgb_s`):
 
 ![Rain removed from a downpour over a parking area](assets/demo_downpour_street.jpg)
 ![Rain removed from the Teotihuacan pyramids](assets/demo_teotihuacan.jpg)
@@ -30,7 +55,7 @@ Not perfect: up close, faint streaks survive on the worst case (dense rain over 
 
 Deraining, evaluated on [ClearView](https://github.com/dronefreak/clearview)'s 10-test-set protocol (Rain100L/H, Test100/1200/2800, DDN-Data, SPA-Data, RealRain-1k-H/L, AllWeather), the same protocol ClearView uses to rank its own architectures. Ranked by ClearView's own convention, average PSNR across the 9 rain-only sets (AllWeather is an out-of-domain fog stress test every architecture scores ~13.5 dB on regardless of size, and is excluded from ranking for that reason).
 
-The three deployment columns are TensorRT numbers, batch size 1, one engine build per model. `yolo26_rgb_*` figures are measured on this exact setup; the baseline figures are ClearView's own published TensorRT benchmark, same GPU/TensorRT version, so directly comparable rather than a separately curated benchmark:
+The three deployment columns are TensorRT numbers, batch size 1, one engine build per model. `yolo26_rgb_n`/`_s` figures are measured on this exact setup; the baseline figures are ClearView's own published TensorRT benchmark, same GPU/TensorRT version, so directly comparable rather than a separately curated benchmark:
 
 | Setting    | Value                                |
 | ---------- | ------------------------------------ |
@@ -56,18 +81,15 @@ The three deployment columns are TensorRT numbers, batch size 1, one engine buil
 | -    | **yolo26_rgb_n**    | **5.25M**  | **30.83**              | **1.27 GB**   | **9.20 ms**    | **108.6 qps**     |
 | 7    | ResNet50-UNet [4]   | 73.3M      | 30.63                  | 315 MB        | 30.2 ms        | 33.1 qps          |
 | 8    | ResNet34-UNet [4]   | 24.5M      | 30.45                  | 217 MB        | 10.5 ms        | 94.9 qps          |
-| -    | **yolo26_rgb_l**    | **26.59M** | **30.34**              | **1.33 GB**   | **15.76 ms**   | **63.5 qps**      |
-| -    | **yolo26_rgb_x**    | **55.94M** | **30.34**              | **2.21 GB**   | **22.44 ms**   | **44.6 qps**      |
-| -    | **yolo26_rgb_m**    | **22.19M** | **30.25**              | **1.32 GB**   | **13.99 ms**   | **71.5 qps**      |
 | 9    | ResNet18-UNet [4]   | 14.4M      | 30.23                  | 197 MB        | 9.07 ms        | 110.3 qps         |
 
 \* Restormer's full-size checkpoint doesn't survive TensorRT conversion at this resolution: ONNX export itself OOMs at fp32 (over 12GB during tracing), and even at fp16 the TensorRT build fails, needing roughly 14.4GB of activation/scratch memory to fuse its attention path on a 12GB card. Reproduced on an idle GPU, a genuine memory ceiling, not contention from another process.
 
-`n` and `s` beat every ResNet-UNet variant, including ResNet50-UNet at 6x the parameters, on the exact baseline this project set out to test against (a classification-pretrained backbone repurposed as a UNet encoder). `m`/`l`/`x` land in the same tier as ResNet18/34-UNet, not below it, but don't clear `s`, scale doesn't help past `s` under the recipe used here. Restormer/NAFNet still lead by a wide margin, expected for architectures built purely to maximize accuracy with no real-time or CPU-deployment constraint, and not the comparison this project is trying to win, see [Why this exists](#why-this-exists). Deployment tells a different story: the rank-1 model by PSNR doesn't run on this GPU at all, and every `yolo26_rgb` scale beats or matches the ResNet-UNet tier it sits closest to in PSNR on both latency and throughput.
+`n` and `s` beat every ResNet-UNet variant, including ResNet50-UNet at 6x the parameters, on the exact baseline this project set out to test against (a classification-pretrained backbone repurposed as a UNet encoder). Restormer/NAFNet still lead by a wide margin, expected for architectures built purely to maximize accuracy with no real-time or CPU-deployment constraint, and not the comparison this project is trying to win, see [Why this exists](#why-this-exists). Deployment tells a different story: the rank-1 model by PSNR doesn't run on this GPU at all, and both `yolo26_rgb` models beat or match the ResNet-UNet tier they sit closest to in PSNR on both latency and throughput.
 
 Separately, on `n`: the depth-pretrained backbone beats a from-scratch (random-init) backbone on **10/10 test sets**, same recipe, 100 epochs, +0.483 dB PSNR / +0.0063 SSIM on average, real but modest, not a blowout. This is the actual question the pretrained-loading path in [`pretrained.py`](yolo26_rgb/models/pretrained.py) exists to answer.
 
-Two caveats worth stating plainly rather than smoothing over: AllWeather (the fog stress test, excluded above) sits at ~13.5 dB for every scale, a stark outlier, not a soft weak point; and scale stops helping past `s`, `m`/`l`/`x` land ~0.5-0.6 dB below it despite more parameters, under the exact same training recipe used for all five.
+One caveat worth stating plainly rather than smoothing over: AllWeather (the fog stress test, excluded above) sits at ~13.5 dB for both `n` and `s`, a stark outlier, not a soft weak point.
 
 ## Install
 
@@ -75,9 +97,7 @@ Two caveats worth stating plainly rather than smoothing over: AllWeather (the fo
 pip install -e .
 ```
 
-Only pulls in `torch` - this release is the model itself, nothing else. Training and evaluation for the checkpoints in this repo used an external package, [ClearView](https://github.com/dronefreak/clearview) (data loading, mixed-domain training recipes, the 10-test-set eval protocol), but ClearView is not a dependency of this package and its training/eval scripts aren't included here.
-
-`YOLO26RGB(...)` covers the common case; for lower-level control (downloading a checkpoint without loading it yet, loading into a model you already constructed) see the `yolo26_rgb.models.pretrained` module docstring.
+Pulls in `torch` and `huggingface_hub` (the latter used only by `YOLO26RGB.from_pretrained`) - this release is the model itself, nothing else. Training and evaluation for the checkpoints in this repo used an external package, [ClearView](https://github.com/dronefreak/clearview) (data loading, mixed-domain training recipes, the 10-test-set eval protocol), but ClearView is not a dependency of this package and its training/eval scripts aren't included here.
 
 ## Structure
 
@@ -97,7 +117,7 @@ yolo26_rgb/
 
 Just the model - this release doesn't include the training/evaluation scripts or mixed-domain configs used to produce the released checkpoints (see [Install](#install)).
 
-`get_model("yolo26_rgb_{n,s,m,l,x}")` builds every scale variant; each runs a forward+backward pass and returns a bare `(B, 3, H, W)` tensor at full input resolution (not a downsampled dict like the original depth head), and round-trips through `state_dict()` in a plain `{"model_state_dict": ...}` checkpoint format.
+`get_model("yolo26_rgb_n")` and `get_model("yolo26_rgb_s")` build the two released variants; each runs a forward+backward pass and returns a bare `(B, 3, H, W)` tensor at full input resolution (not a downsampled dict like the original depth head), and round-trips through `state_dict()` in a plain `{"model_state_dict": ...}` checkpoint format.
 
 ## License: AGPL-3.0
 

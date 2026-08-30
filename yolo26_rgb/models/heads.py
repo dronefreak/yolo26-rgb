@@ -56,6 +56,9 @@ from .pretrained import get_pretrained_state_dict, load_pretrained_backbone
 
 _SCALES = ("n", "s", "m", "l", "x")
 _WEIGHTS_RE = re.compile(r"yolo26([nsmlx])(?:-depth)?(?:\.pt)?$")
+# Released Hub repos are named ".../yolo26-rgb-<scale>" (e.g. dronefreak/yolo26-rgb-s),
+# which _WEIGHTS_RE deliberately does not match (there is no "yolo26<scale>" substring).
+_REPO_SCALE_RE = re.compile(r"yolo26-rgb-([nsmlx])(?![a-z])")
 
 
 def _parse_scale(weights: str) -> str:
@@ -248,6 +251,9 @@ class Yolo26RGB(nn.Module):
 
         >>> # or, one-line depth-pretrained backbone (downloads + loads automatically):
         >>> model = Yolo26RGB("yolo26n-depth.pt")
+
+        >>> # or, a trained deraining model from the Hugging Face Hub (returned in eval mode):
+        >>> model = Yolo26RGB.from_pretrained("dronefreak/yolo26-rgb-s")
     """
 
     # 5 stride-2 convs in the backbone (P1 through P5, see yolo26-rgb.yaml),
@@ -295,6 +301,78 @@ class Yolo26RGB(nn.Module):
         if weights is not None and pretrained:
             state_dict_path = get_pretrained_state_dict(scale)
             load_pretrained_backbone(self, state_dict_path)
+
+    @classmethod
+    def from_pretrained(
+        cls,
+        repo_id: str,
+        *,
+        filename: str | None = None,
+        scale: str | None = None,
+        map_location: Any = "cpu",
+        **hf_kwargs: Any,
+    ) -> "Yolo26RGB":
+        """Build a `Yolo26RGB` with a released deraining checkpoint from the Hugging Face Hub.
+
+        Downloads `yolo26{scale}-rgb.pt` from `repo_id` (via `huggingface_hub`, cached in the
+        usual HF cache), constructs the matching-scale model with a random-init head, and loads
+        the full checkpoint into it. Unlike the `weights=` constructor arg - which only loads
+        YOLO26's *depth* backbone into an otherwise random model - this restores a fully trained
+        restoration model.
+
+        Args:
+            repo_id: e.g. "dronefreak/yolo26-rgb-s". The scale is parsed from the trailing
+                "-n" / "-s" unless `scale` is passed explicitly.
+            filename: checkpoint file within the repo. Defaults to "yolo26{scale}-rgb.pt".
+            scale: "n" or "s" (any of `_SCALES` is accepted). Parsed from `repo_id` when omitted.
+            map_location: forwarded to `torch.load`; also the device the returned model is moved
+                to. Defaults to CPU - call `.to(...)` / `.cuda()` afterwards as needed.
+            **hf_kwargs: forwarded to `huggingface_hub.hf_hub_download` (`revision`, `token`,
+                `cache_dir`, `local_files_only`, ...).
+
+        Returns:
+            A `Yolo26RGB` in `eval()` mode with the released weights loaded.
+        """
+        if scale is None:
+            m = _REPO_SCALE_RE.search(repo_id)
+            if not m:
+                raise ValueError(
+                    f"Could not parse a scale from repo_id={repo_id!r}; pass scale=... "
+                    "explicitly (expected an id like 'dronefreak/yolo26-rgb-s')."
+                )
+            scale = m.group(1)
+        if scale not in _SCALES:
+            raise ValueError(f"Unknown scale {scale!r}, expected one of {_SCALES}")
+        if filename is None:
+            filename = f"yolo26{scale}-rgb.pt"
+
+        try:
+            from huggingface_hub import hf_hub_download
+        except (
+            ImportError
+        ) as e:  # pragma: no cover - dependency is declared in pyproject
+            raise ImportError(
+                "YOLO26RGB.from_pretrained needs `huggingface_hub` (`pip install huggingface_hub`, "
+                "or reinstall this package). To load a local checkpoint without it, use "
+                'YOLO26RGB(scale=...) then model.load_state_dict(torch.load(path)["model_state_dict"]).'
+            ) from e
+
+        ckpt_path = hf_hub_download(repo_id=repo_id, filename=filename, **hf_kwargs)
+
+        model = cls(scale=scale, pretrained=False)
+        # Our own checkpoint: a plain {"model_state_dict": tensors} dict (see class docstring),
+        # or a bare state_dict. weights_only=False matches yolo26_rgb.scripts.evaluate.
+        ckpt = torch.load(ckpt_path, map_location=map_location, weights_only=False)
+        state_dict = (
+            ckpt["model_state_dict"]
+            if isinstance(ckpt, dict) and "model_state_dict" in ckpt
+            else ckpt
+        )
+        model.load_state_dict(state_dict)
+        if isinstance(map_location, (str, torch.device)):
+            model.to(map_location)
+        model.eval()
+        return model
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         h, w = x.shape[-2:]
