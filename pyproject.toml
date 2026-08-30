@@ -36,13 +36,10 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "License :: OSI Approved :: GNU Affero General Public License v3",
 ]
 
 dependencies = [
     "torch>=2.0.0",
-    "torchvision>=0.15.0",
-    "clearview @ git+https://github.com/dronefreak/clearview.git",
 ]
 
 [project.optional-dependencies]
@@ -53,9 +50,6 @@ dev = [
     "ruff>=0.0.270",
 ]
 
-[project.scripts]
-yolo26-rgb-train = "yolo26_rgb.scripts.train:main"
-yolo26-rgb-evaluate = "yolo26_rgb.scripts.evaluate:main"
-
 [tool.setuptools.packages.find]
 include = ["yolo26_rgb*"]
+exclude = ["yolo26_rgb.scripts", "yolo26_rgb.scripts.*"]

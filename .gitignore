@@ -14,3 +14,31 @@ dist/
 runs/
 *.pth
 *.pt
+
+# logs / tensorboard
+logs/
+pretrained_models/
+pretrained_weights/
+pretrained/
+articles/
+
+# Local files
+PROJECT_NOTEBOOKS/
+PROJECT_NOTES.md
+ROADMAP.md
+scripts/
+
+# v1 is model-only: training/eval scripts and the mixed-domain configs they
+# consume aren't part of this release (see README.md's Install section) --
+# still used locally, just not published. yolo26_rgb/scripts/{train,evaluate}.py
+# and configs/README.md are already git-tracked from an earlier commit, this
+# rule only stops them from being re-added after a `git rm --cached`.
+yolo26_rgb/scripts/
+configs/
+
+# scratch ONNX/TensorRT export experiments (see ROADMAP.md's export open question) --
+# throwaway artifacts from a dummy conversion script, not wired into the package yet.
+export_scratch/
+
+runs.zip
+.claude/
