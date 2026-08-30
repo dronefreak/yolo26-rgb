@@ -28,26 +28,30 @@ Not perfect: up close, faint streaks survive on the worst case (dense rain over 
 
 ## Results
 
-Deraining, evaluated on [ClearView](https://github.com/dronefreak/clearview)'s 10-test-set protocol (Rain100L/H, Test100/1200/2800, DDN-Data, SPA-Data, RealRain-1k-H/L, AllWeather), the same protocol ClearView uses to rank its own architectures. Ranked by ClearView's own convention, average PSNR across the 9 rain-only sets (AllWeather is an out-of-domain fog stress test every architecture scores ~13.5 dB on regardless of size, and is excluded from ranking for that reason):
+Deraining, evaluated on [ClearView](https://github.com/dronefreak/clearview)'s 10-test-set protocol (Rain100L/H, Test100/1200/2800, DDN-Data, SPA-Data, RealRain-1k-H/L, AllWeather), the same protocol ClearView uses to rank its own architectures. Ranked by ClearView's own convention, average PSNR across the 9 rain-only sets (AllWeather is an out-of-domain fog stress test every architecture scores ~13.5 dB on regardless of size, and is excluded from ranking for that reason).
 
-| Rank | Model            | Params     | Avg PSNR (9 rain-only test sets) |
-| ---- | ---------------- | ---------- | -------------------------------- |
-| 1    | Restormer        | 15.3M      | 35.10                            |
-| 2    | NAFNet (Large)   | 116M       | 34.16                            |
-| 3    | NAFNet (Mid)     | 14.3M      | 33.97                            |
-| 4    | Restormer-Small  | 2.3M       | 31.98                            |
-| 5    | UNet (Vanilla)   | 21.5M      | 31.74                            |
-| 6    | NAFNet (Small)   | 1.1M       | 31.15                            |
-| -    | **yolo26_rgb_s** | **12.13M** | **30.95**                        |
-| -    | **yolo26_rgb_n** | **5.25M**  | **30.83**                        |
-| 7    | ResNet50-UNet    | 73.3M      | 30.63                            |
-| 8    | ResNet34-UNet    | 24.5M      | 30.45                            |
-| -    | **yolo26_rgb_l** | **26.59M** | **30.34**                        |
-| -    | **yolo26_rgb_x** | **55.94M** | **30.34**                        |
-| -    | **yolo26_rgb_m** | **22.19M** | **30.25**                        |
-| 9    | ResNet18-UNet    | 14.4M      | 30.23                            |
+The three deployment columns are TensorRT 11.2.1 numbers at 1920x1080, fp16, on an RTX 4070 SUPER (12GB): the baseline figures are ClearView's own published TensorRT benchmark, same GPU/resolution/TensorRT version, so directly comparable rather than a separately curated benchmark; the `yolo26_rgb_*` numbers are ours, measured identically.
 
-`n` and `s` beat every ResNet-UNet variant, including ResNet50-UNet at 6x the parameters, on the exact baseline this project set out to test against (a classification-pretrained backbone repurposed as a UNet encoder). `m`/`l`/`x` land in the same tier as ResNet18/34-UNet, not below it, but don't clear `s`, scale doesn't help past `s` under the recipe used here. Restormer/NAFNet still lead by a wide margin, expected for architectures built purely to maximize accuracy with no real-time or CPU-deployment constraint, and not the comparison this project is trying to win, see [Why this exists](#why-this-exists).
+| Rank | Model               | Params     | Avg PSNR (9 rain-only) | Engine (fp16) | Latency (fp16) | Throughput (fp16) |
+| ---- | ------------------- | ---------- | ---------------------- | ------------- | -------------- | ----------------- |
+| 1    | Restormer [1]       | 15.3M      | 35.10                  | OOM\*         | OOM\*          | OOM\*             |
+| 2    | NAFNet (Large) [3]  | 116M       | 34.16                  | 3.86 GB       | 1938.4 ms      | 0.52 qps          |
+| 3    | NAFNet (Mid) [3]    | 14.3M      | 33.97                  | 1.85 GB       | 305.4 ms       | 3.3 qps           |
+| 4    | Restormer-Small [1] | 2.3M       | 31.98                  | 7.2 GB        | 211.2 ms       | 4.7 qps           |
+| 5    | UNet (Vanilla) [2]  | 21.5M      | 31.74                  | 44 MB         | 36.6 ms        | 27.3 qps          |
+| 6    | NAFNet (Small) [3]  | 1.1M       | 31.15                  | 911 MB        | 37.2 ms        | 26.9 qps          |
+| -    | **yolo26_rgb_s**    | **12.13M** | **30.95**              | **1.53 GB**   | **10.85 ms**   | **92.2 qps**      |
+| -    | **yolo26_rgb_n**    | **5.25M**  | **30.83**              | **1.27 GB**   | **9.20 ms**    | **108.6 qps**     |
+| 7    | ResNet50-UNet [4]   | 73.3M      | 30.63                  | 315 MB        | 30.2 ms        | 33.1 qps          |
+| 8    | ResNet34-UNet [4]   | 24.5M      | 30.45                  | 217 MB        | 10.5 ms        | 94.9 qps          |
+| -    | **yolo26_rgb_l**    | **26.59M** | **30.34**              | **1.33 GB**   | **15.76 ms**   | **63.5 qps**      |
+| -    | **yolo26_rgb_x**    | **55.94M** | **30.34**              | **2.21 GB**   | **22.44 ms**   | **44.6 qps**      |
+| -    | **yolo26_rgb_m**    | **22.19M** | **30.25**              | **1.32 GB**   | **13.99 ms**   | **71.5 qps**      |
+| 9    | ResNet18-UNet [4]   | 14.4M      | 30.23                  | 197 MB        | 9.07 ms        | 110.3 qps         |
+
+\* Restormer's full-size checkpoint doesn't survive TensorRT conversion at this resolution: ONNX export itself OOMs at fp32 (over 12GB during tracing), and even at fp16 the TensorRT build fails, needing roughly 14.4GB of activation/scratch memory to fuse its attention path on a 12GB card. Reproduced on an idle GPU, a genuine memory ceiling, not contention from another process.
+
+`n` and `s` beat every ResNet-UNet variant, including ResNet50-UNet at 6x the parameters, on the exact baseline this project set out to test against (a classification-pretrained backbone repurposed as a UNet encoder). `m`/`l`/`x` land in the same tier as ResNet18/34-UNet, not below it, but don't clear `s`, scale doesn't help past `s` under the recipe used here. Restormer/NAFNet still lead by a wide margin, expected for architectures built purely to maximize accuracy with no real-time or CPU-deployment constraint, and not the comparison this project is trying to win, see [Why this exists](#why-this-exists). Deployment tells a different story: the rank-1 model by PSNR doesn't run on this GPU at all, and every `yolo26_rgb` scale beats or matches the ResNet-UNet tier it sits closest to in PSNR on both latency and throughput.
 
 Separately, on `n`: the depth-pretrained backbone beats a from-scratch (random-init) backbone on **10/10 test sets**, same recipe, 100 epochs, +0.483 dB PSNR / +0.0063 SSIM on average, real but modest, not a blowout. This is the actual question the pretrained-loading path in [`pretrained.py`](yolo26_rgb/models/pretrained.py) exists to answer.
 
@@ -125,3 +129,12 @@ Built on Ultralytics YOLO26, see [Ultralytics' licensing terms](https://www.ultr
   license = {AGPL-3.0}
 }
 ```
+
+### References
+
+Papers behind the baseline architectures in the [Results](#results) table above (numbers themselves are [ClearView](https://github.com/dronefreak/clearview)'s, not reproduced here):
+
+1. Zamir et al., _Restormer: Efficient Transformer for High-Resolution Image Restoration_, CVPR 2022, [arXiv:2111.09881](https://arxiv.org/abs/2111.09881).
+2. Ronneberger, Fischer & Brox, _U-Net: Convolutional Networks for Biomedical Image Segmentation_, MICCAI 2015, [arXiv:1505.04597](https://arxiv.org/abs/1505.04597).
+3. Chen, Chu, Zhang & Sun, _Simple Baselines for Image Restoration_, ECCV 2022, [arXiv:2204.04676](https://arxiv.org/abs/2204.04676) (NAFNet).
+4. He, Zhang, Ren & Sun, _Deep Residual Learning for Image Recognition_, CVPR 2016, [arXiv:1512.03385](https://arxiv.org/abs/1512.03385) (ResNet, the encoder backbone for the ResNet18/34/50-UNet baselines).
