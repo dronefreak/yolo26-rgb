@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 376" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" role="img" aria-label="YOLO26-RGB data flow, left to right: RGB input, CSPDarknet backbone building a stride 2 to 32 pyramid, PAN-FPN neck, the RGBHead fuse and tail stages (original code), a summation node, and RGB output. A dashed stride-4 skip runs from backbone index 1 into the tail; a dashed stride-2 skip runs from backbone index 0 into the tail. An amber arc carries a global residual from the input to the summation node.">
+  <title>YOLO26-RGB architecture: end-to-end data flow</title>
+  <desc>The CSPDarknet backbone and PAN-FPN neck are unmodified YOLO26. RGBHead (teal) replaces the depth head: fuse P3/P4/P5, upsample to full resolution, add two high-resolution skip taps, and emit a 3-channel residual that is added back to the padded input.</desc>
+
+  <rect x="0" y="0" width="1040" height="376" fill="#fbfbfa"/>
+
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1b2430"/>
+    </marker>
+    <marker id="ah-amber" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#c85a2b"/>
+    </marker>
+  </defs>
+
+  <!-- global residual arc -->
+  <path d="M66,132 C66,74 66,40 150,40 L 852,40 C 892,40 897,74 897,150"
+        fill="none" stroke="#c85a2b" stroke-width="2.5" marker-end="url(#ah-amber)"/>
+  <text x="470" y="33" text-anchor="middle" font-size="11" fill="#c85a2b">global residual &#8212; output = net(x) + padded input</text>
+
+  <!-- boxes -->
+  <g>
+    <rect x="14" y="132" width="104" height="72" rx="6" fill="#eef1f4" stroke="#1b2430" stroke-width="1.5"/>
+    <text x="66" y="162" text-anchor="middle" font-size="10" letter-spacing="1.2" fill="#1b2430">INPUT</text>
+    <text x="66" y="180" text-anchor="middle" font-size="10" fill="#5c6873">H &#215; W &#215; 3</text>
+
+    <rect x="146" y="132" width="172" height="72" rx="6" fill="#ffffff" stroke="#1b2430" stroke-width="1.5"/>
+    <text x="232" y="153" text-anchor="middle" font-size="10" letter-spacing="1.2" fill="#1b2430">BACKBONE</text>
+    <text x="232" y="169" text-anchor="middle" font-size="9.5" fill="#5c6873">Conv &#183; C3k2 &#183; SPPF &#183; C2PSA</text>
+    <text x="232" y="183" text-anchor="middle" font-size="9.5" fill="#5c6873">P1/2 -&gt; P5/32</text>
+    <text x="232" y="197" text-anchor="middle" font-size="9" fill="#5c6873">idx 0&#8211;10 &#183; unmodified</text>
+
+    <rect x="346" y="132" width="150" height="72" rx="6" fill="#ffffff" stroke="#1b2430" stroke-width="1.5"/>
+    <text x="421" y="153" text-anchor="middle" font-size="10" letter-spacing="1.2" fill="#1b2430">PAN-FPN NECK</text>
+    <text x="421" y="169" text-anchor="middle" font-size="9.5" fill="#5c6873">Upsample &#183; Concat &#183; C3k2</text>
+    <text x="421" y="183" text-anchor="middle" font-size="9.5" fill="#5c6873">-&gt; P3/8  P4/16  P5/32</text>
+    <text x="421" y="197" text-anchor="middle" font-size="9" fill="#5c6873">idx 11&#8211;22 &#183; unmodified</text>
+
+    <rect x="520" y="116" width="352" height="104" rx="8" fill="#e6f2f0" stroke="#1f7a6f" stroke-width="1.5"/>
+    <text x="528" y="110" font-size="9" letter-spacing="1" fill="#1f7a6f">RGBHEAD &#183; original code</text>
+
+    <rect x="536" y="132" width="152" height="72" rx="5" fill="#ffffff" stroke="#1f7a6f" stroke-width="1.3"/>
+    <text x="612" y="153" text-anchor="middle" font-size="10" letter-spacing=".8" fill="#1b2430">FUSE</text>
+    <text x="612" y="169" text-anchor="middle" font-size="9.5" fill="#5c6873">proj -&gt; c_mid (1&#215;1)</text>
+    <text x="612" y="183" text-anchor="middle" font-size="9.5" fill="#5c6873">P5 -&gt; P4 -&gt; P3 ladder</text>
+    <text x="612" y="197" text-anchor="middle" font-size="9" fill="#5c6873">interp&#215;2 + add + refine</text>
+
+    <rect x="700" y="132" width="156" height="72" rx="5" fill="#ffffff" stroke="#1f7a6f" stroke-width="1.3"/>
+    <text x="778" y="153" text-anchor="middle" font-size="10" letter-spacing=".8" fill="#1b2430">TAIL</text>
+    <text x="778" y="169" text-anchor="middle" font-size="9.5" fill="#5c6873">ConvT&#215;2 &#183; bili&#215;2 &#183; bili&#215;2</text>
+    <text x="778" y="183" text-anchor="middle" font-size="9.5" fill="#5c6873">-&gt; full input res</text>
+    <text x="778" y="197" text-anchor="middle" font-size="9" fill="#5c6873">1&#215;1 -&gt; 3-ch residual</text>
+
+    <circle cx="897" cy="168" r="15" fill="#ffffff" stroke="#c85a2b" stroke-width="2"/>
+    <text x="897" y="173" text-anchor="middle" font-size="15" fill="#c85a2b">+</text>
+
+    <rect x="936" y="132" width="100" height="72" rx="6" fill="#eef1f4" stroke="#1b2430" stroke-width="1.5"/>
+    <text x="986" y="162" text-anchor="middle" font-size="10" letter-spacing="1.2" fill="#1b2430">OUTPUT</text>
+    <text x="986" y="180" text-anchor="middle" font-size="10" fill="#5c6873">H &#215; W &#215; 3</text>
+  </g>
+
+  <!-- flow arrows -->
+  <g stroke="#1b2430" stroke-width="1.5" fill="none">
+    <line x1="118" y1="168" x2="144" y2="168" marker-end="url(#ah)"/>
+    <line x1="318" y1="168" x2="344" y2="168" marker-end="url(#ah)"/>
+    <line x1="496" y1="168" x2="534" y2="168" marker-end="url(#ah)"/>
+    <line x1="688" y1="168" x2="698" y2="168" marker-end="url(#ah)"/>
+    <line x1="856" y1="168" x2="880" y2="168" marker-end="url(#ah)"/>
+    <line x1="912" y1="168" x2="934" y2="168" marker-end="url(#ah)"/>
+  </g>
+
+  <!-- skip taps -->
+  <g stroke="#1b2430" stroke-width="1.5" fill="none" stroke-dasharray="5 4">
+    <path d="M214,204 C214,244 214,262 300,262 L 690,262 C 726,262 742,246 742,206" marker-end="url(#ah)"/>
+    <path d="M250,204 C250,286 250,308 340,308 L 726,308 C 762,308 774,290 774,206" marker-end="url(#ah)"/>
+  </g>
+  <g font-size="10" fill="#5c6873" text-anchor="middle">
+    <text x="470" y="257">stride-4 skip &#183; backbone idx 1 (P2/4) -&gt; tail @ input/4</text>
+    <text x="470" y="303">stride-2 skip &#183; backbone idx 0 (P1/2) -&gt; tail @ input/2</text>
+  </g>
+
+  <!-- legend -->
+  <g font-size="10" fill="#5c6873">
+    <rect x="20" y="344" width="13" height="13" rx="2" fill="#e6f2f0" stroke="#1f7a6f" stroke-width="1.5"/>
+    <text x="40" y="354">RGBHead &#8212; original code</text>
+    <rect x="250" y="344" width="13" height="13" rx="2" fill="#ffffff" stroke="#1b2430" stroke-width="1.5"/>
+    <text x="270" y="354">backbone / neck &#8212; unmodified YOLO26</text>
+    <line x1="560" y1="351" x2="586" y2="351" stroke="#1b2430" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <text x="592" y="354">skip tap (stride-2 / stride-4)</text>
+    <line x1="820" y1="351" x2="846" y2="351" stroke="#c85a2b" stroke-width="2.5"/>
+    <text x="852" y="354">global residual</text>
+  </g>
+</svg>

@@ -41,6 +41,12 @@ Image.fromarray(out).save("derained.png")
 
 Detection and segmentation backbones are usually evaluated for cross-task transfer within vision (does a good detector also segment well), but rarely against dense pixel-regression restoration tasks like deraining. YOLO26 already ships a depth-estimation head, itself a dense, full-resolution regression task, which makes it a more interesting test case than a plain classification backbone. Classification-pretrained backbones (e.g. ResNet-UNet) are known to underperform purpose-built restoration architectures on rain removal despite far more parameters, a plausible reason being the classification-tuned stem's aggressive early downsampling losing fine rain-streak detail before any residual block runs. Swapping YOLO26's depth head for an RGB head is architecturally straightforward, since the decoder already upsamples to full input resolution, the open question is whether that decoder's inductive bias, tuned for real-time detection speed and then adapted once for depth, transfers to rain removal any better.
 
+## Architecture
+
+![YOLO26-RGB end-to-end data flow: an unmodified CSPDarknet backbone and PAN-FPN neck feed RGBHead, which replaces the depth head with a fusion stage and a full-resolution tail; two dashed skip taps carry stride-2 and stride-4 detail into the tail, and an amber arc adds the network's residual output back onto the input.](assets/architecture.svg)
+
+`_vendor/yolo26-rgb.yaml` is `yolo26-depth.yaml` with **one line changed** — the terminal `Depth` head becomes `RGBHead`. The CSPDarknet backbone (idx 0-10) and PAN-FPN neck (idx 11-22) are untouched. `RGBHead` keeps the depth decoder's P3/P4/P5 fusion and replaces everything after it: full input-resolution output, two skip connections from the stride-2/4 backbone layers into the tail, a global residual (predict a correction, add to the input), and LayerNorm in its own conv blocks while the backbone/neck stay on BatchNorm (folds into conv at TensorRT export; keeps the whole YOLO26 pretrained zoo loadable). The released depth checkpoint loads into the backbone/neck with a 468/468 tensor match. Full breakdown, including the `RGBHead` internals figure: [`assets/rgbhead.svg`](assets/rgbhead.svg).
+
 ## Examples
 
 Real photos, not part of the eval set below (`yolo26_rgb_s`):

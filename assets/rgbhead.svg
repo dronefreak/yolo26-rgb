@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 866" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" role="img" aria-label="Top-to-bottom flow through RGBHead: neck outputs P3, P4, P5; proj ConvLN 1x1 to c_mid per level; fusion ladder P5 to P4 to P3 with bilinear interpolate, add and refine; head_proj ConvLN 3x3 to c_mid/2; head_up ConvTranspose2d x2; head_reduce ConvLN 3x3 to c_head; a summation with the stride-4 skip; tail_refine1 bare Conv plus SiLU; tail_up1 bilinear x2; a summation with the stride-2 skip; tail_refine2; tail_up2 bilinear x2; out_conv 1x1 to 3 channels with no activation, added to the padded input. A right-hand rail shows the output stride at each stage, descending from 32 to 1.">
+  <title>RGBHead internals</title>
+  <desc>The tail of RGBHead, stride 32 down to 1. Teal blocks use ConvLN (LayerNorm); the two tail_refine blocks are bare Conv+SiLU. Dashed blocks are where the stride-4 and stride-2 skips are added. The amber block is the unbounded 3-channel residual leaving the head.</desc>
+
+  <rect x="0" y="0" width="680" height="866" fill="#fbfbfa"/>
+
+  <defs>
+    <marker id="v" viewBox="0 0 10 10" refX="5" refY="8" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,0 L5,10 z" fill="#1b2430"/>
+    </marker>
+  </defs>
+
+  <!-- stride rail -->
+  <line x1="528" y1="36" x2="528" y2="812" stroke="#d6dbe1" stroke-width="1"/>
+  <text x="540" y="24" font-size="9" letter-spacing="1" fill="#5c6873">OUTPUT STRIDE</text>
+  <g font-size="11" fill="#5c6873">
+    <text x="540" y="112">/8 &#183; /16 &#183; /32</text>
+    <text x="540" y="190">-&gt; /8</text>
+    <text x="540" y="252">/8</text>
+    <text x="540" y="314">/4</text>
+    <text x="540" y="376">/4</text>
+    <text x="540" y="438">/4</text>
+    <text x="540" y="500">/4</text>
+    <text x="540" y="562">/2</text>
+    <text x="540" y="624">/2</text>
+    <text x="540" y="686">/2</text>
+    <text x="540" y="748">/1</text>
+    <text x="540" y="800">/1</text>
+  </g>
+
+  <g>
+    <rect x="60" y="36" width="430" height="44" rx="6" fill="#eef1f4" stroke="#1b2430" stroke-width="1.4"/>
+    <text x="275" y="63" text-anchor="middle" font-size="11" fill="#1b2430">neck outputs   P3/8   P4/16   P5/32</text>
+
+    <rect x="60" y="96" width="430" height="44" rx="6" fill="#e6f2f0" stroke="#1f7a6f" stroke-width="1.4"/>
+    <text x="275" y="118" text-anchor="middle" font-size="11" fill="#1b2430">proj &#183; ConvLN 1&#215;1 -&gt; c_mid   (per level)</text>
+    <text x="275" y="132" text-anchor="middle" font-size="9" fill="#5c6873">LayerNorm2d</text>
+
+    <rect x="60" y="156" width="430" height="56" rx="6" fill="#e6f2f0" stroke="#1f7a6f" stroke-width="1.4"/>
+    <text x="275" y="180" text-anchor="middle" font-size="11" fill="#1b2430">fusion ladder   P5 -&gt; P4 -&gt; P3</text>
+    <text x="275" y="197" text-anchor="middle" font-size="9" fill="#5c6873">F.interpolate bili &#215;2 &#183; add &#183; refine (2&#215;ConvLN 3&#215;3) &#183; align_corners=False</text>
+
+    <rect x="60" y="228" width="430" height="44" rx="6" fill="#e6f2f0" stroke="#1f7a6f" stroke-width="1.4"/>
+    <text x="275" y="255" text-anchor="middle" font-size="11" fill="#1b2430">head_proj &#183; ConvLN 3&#215;3   c_mid -&gt; c_mid/2</text>
+
+    <rect x="60" y="290" width="430" height="44" rx="6" fill="#e6f2f0" stroke="#1f7a6f" stroke-width="1.4"/>
+    <text x="275" y="317" text-anchor="middle" font-size="11" fill="#1b2430">head_up &#183; ConvTranspose2d &#215;2</text>
+
+    <rect x="60" y="352" width="430" height="44" rx="6" fill="#e6f2f0" stroke="#1f7a6f" stroke-width="1.4"/>
+    <text x="275" y="379" text-anchor="middle" font-size="11" fill="#1b2430">head_reduce &#183; ConvLN 3&#215;3 -&gt; c_head = c_mid/4</text>
+
+    <rect x="60" y="414" width="430" height="44" rx="6" fill="#ffffff" stroke="#1b2430" stroke-width="1.4" stroke-dasharray="5 4"/>
+    <text x="275" y="441" text-anchor="middle" font-size="11" fill="#1b2430">(+)  stride-4 skip   ConvLN 1&#215;1 from backbone idx 1</text>
+
+    <rect x="60" y="476" width="430" height="44" rx="6" fill="#e6f2f0" stroke="#1f7a6f" stroke-width="1.4"/>
+    <text x="275" y="503" text-anchor="middle" font-size="11" fill="#1b2430">tail_refine1 &#183; Conv 3&#215;3 + SiLU   (no norm)</text>
+
+    <rect x="60" y="538" width="430" height="44" rx="6" fill="#e6f2f0" stroke="#1f7a6f" stroke-width="1.4"/>
+    <text x="275" y="565" text-anchor="middle" font-size="11" fill="#1b2430">tail_up1 &#183; Upsample bilinear &#215;2</text>
+
+    <rect x="60" y="600" width="430" height="44" rx="6" fill="#ffffff" stroke="#1b2430" stroke-width="1.4" stroke-dasharray="5 4"/>
+    <text x="275" y="627" text-anchor="middle" font-size="11" fill="#1b2430">(+)  stride-2 skip   ConvLN 1&#215;1 from backbone idx 0</text>
+
+    <rect x="60" y="662" width="430" height="44" rx="6" fill="#e6f2f0" stroke="#1f7a6f" stroke-width="1.4"/>
+    <text x="275" y="689" text-anchor="middle" font-size="11" fill="#1b2430">tail_refine2 &#183; Conv 3&#215;3 + SiLU</text>
+
+    <rect x="60" y="724" width="430" height="44" rx="6" fill="#e6f2f0" stroke="#1f7a6f" stroke-width="1.4"/>
+    <text x="275" y="751" text-anchor="middle" font-size="11" fill="#1b2430">tail_up2 &#183; Upsample bilinear &#215;2</text>
+
+    <rect x="60" y="786" width="430" height="44" rx="6" fill="#f6e6dd" stroke="#c85a2b" stroke-width="1.6"/>
+    <text x="275" y="808" text-anchor="middle" font-size="11" fill="#c85a2b">out_conv &#183; Conv 1&#215;1 &#183; no activation -&gt; 3-ch residual</text>
+    <text x="275" y="822" text-anchor="middle" font-size="9" fill="#5c6873">added to the padded input by Yolo26RGB.forward, then cropped</text>
+  </g>
+
+  <g stroke="#1b2430" stroke-width="1.4" fill="none">
+    <line x1="275" y1="80" x2="275" y2="94" marker-end="url(#v)"/>
+    <line x1="275" y1="140" x2="275" y2="154" marker-end="url(#v)"/>
+    <line x1="275" y1="212" x2="275" y2="226" marker-end="url(#v)"/>
+    <line x1="275" y1="272" x2="275" y2="288" marker-end="url(#v)"/>
+    <line x1="275" y1="334" x2="275" y2="350" marker-end="url(#v)"/>
+    <line x1="275" y1="396" x2="275" y2="412" marker-end="url(#v)"/>
+    <line x1="275" y1="458" x2="275" y2="474" marker-end="url(#v)"/>
+    <line x1="275" y1="520" x2="275" y2="536" marker-end="url(#v)"/>
+    <line x1="275" y1="582" x2="275" y2="598" marker-end="url(#v)"/>
+    <line x1="275" y1="644" x2="275" y2="660" marker-end="url(#v)"/>
+    <line x1="275" y1="706" x2="275" y2="722" marker-end="url(#v)"/>
+    <line x1="275" y1="768" x2="275" y2="784" marker-end="url(#v)"/>
+  </g>
+  <g stroke="#1b2430" stroke-width="1.4" fill="none" stroke-dasharray="5 4">
+    <line x1="18" y1="436" x2="56" y2="436" marker-end="url(#v)"/>
+    <line x1="18" y1="622" x2="56" y2="622" marker-end="url(#v)"/>
+  </g>
+</svg>
