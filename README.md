@@ -10,48 +10,44 @@ from yolo26_rgb import YOLO26RGB
 model = YOLO26RGB("yolo26n-depth.pt")  # downloads + loads the depth-pretrained backbone automatically
 ```
 
-That's it - `YOLO26RGB(...)` parses the scale (`n`/`s`/`m`/`l`/`x`) out of the checkpoint name, downloads it from Ultralytics' own release assets if it isn't already cached locally, extracts and loads the pretrained backbone/neck, and hands back a ready-to-use model (a plain `nn.Module`, call it directly: `model(image_tensor)`). Same convention as `ultralytics.YOLO("yolo26n-depth.pt")`. Prefer training from scratch instead? `YOLO26RGB("n", pretrained=False)`.
-
 `model(image_tensor)` takes `(B, 3, H, W)` in `[0, 1]` and returns a bare `(B, 3, H, W)` tensor - no dict, no metadata, any input size (internally padded to a multiple of 32 and cropped back). Nothing else to unpack, so it drops straight into an existing restoration pipeline. One thing to know: the output itself is **not** clamped to `[0, 1]` (`RGBHead` predicts a residual correction added to the input, NAFNet/Restormer-style, rather than regressing a bounded image directly) - `.clamp(0, 1)` before saving/displaying as an image.
 
 ## Why this exists
 
 Detection and segmentation backbones are usually evaluated for cross-task transfer within vision (does a good detector also segment well), but rarely against dense pixel-regression restoration tasks like deraining. YOLO26 already ships a depth-estimation head, itself a dense, full-resolution regression task, which makes it a more interesting test case than a plain classification backbone. Classification-pretrained backbones (e.g. ResNet-UNet) are known to underperform purpose-built restoration architectures on rain removal despite far more parameters, a plausible reason being the classification-tuned stem's aggressive early downsampling losing fine rain-streak detail before any residual block runs. Swapping YOLO26's depth head for an RGB head is architecturally straightforward, since the decoder already upsamples to full input resolution, the open question is whether that decoder's inductive bias, tuned for real-time detection speed and then adapted once for depth, transfers to rain removal any better.
 
-n/s/m/l/x variants, each trained and evaluated against the same mixed-domain recipe and a 10-test-set protocol.
+## Examples
+
+Real photos, not part of the eval set below (`yolo26_rgb_s`, the best-performing scale):
+
+![Rain removed from a downpour over a parking area](assets/demo_downpour_street.jpg)
+![Rain removed from the Teotihuacan pyramids](assets/demo_teotihuacan.jpg)
+![Rain removed from a sunlit park path](assets/demo_park_path.jpg)
+
+Not perfect: up close, faint streaks survive on the worst case (dense rain over flat, low-texture backgrounds, first example above), see the AllWeather caveat below for where this breaks down harder. At normal viewing size it reads as a clear improvement in all three.
 
 ## Results
 
 Deraining, evaluated on [ClearView](https://github.com/dronefreak/clearview)'s 10-test-set protocol (Rain100L/H, Test100/1200/2800, DDN-Data, SPA-Data, RealRain-1k-H/L, AllWeather), the same protocol ClearView uses to rank its own architectures. Ranked by ClearView's own convention, average PSNR across the 9 rain-only sets (AllWeather is an out-of-domain fog stress test every architecture scores ~13.5 dB on regardless of size, and is excluded from ranking for that reason):
 
-| Rank | Model            | Params     | Avg PSNR (9 rain-only) |
-| ---- | ---------------- | ---------- | ---------------------- |
-| 1    | Restormer        | 15.3M      | 35.10                  |
-| 2    | NAFNet (Large)   | 116M       | 34.16                  |
-| 3    | NAFNet (Mid)     | 14.3M      | 33.97                  |
-| 4    | Restormer-Small  | 2.3M       | 31.98                  |
-| 5    | UNet (Vanilla)   | 21.5M      | 31.74                  |
-| 6    | NAFNet (Small)   | 1.1M       | 31.15                  |
-| -    | **yolo26_rgb_s** | **12.13M** | **30.95**              |
-| -    | **yolo26_rgb_n** | **5.25M**  | **30.83**              |
-| 7    | ResNet50-UNet    | 73.3M      | 30.63                  |
-| 8    | ResNet34-UNet    | 24.5M      | 30.45                  |
-| -    | **yolo26_rgb_l** | **26.59M** | **30.34**              |
-| -    | **yolo26_rgb_x** | **55.94M** | **30.34**              |
-| -    | **yolo26_rgb_m** | **22.19M** | **30.25**              |
-| 9    | ResNet18-UNet    | 14.4M      | 30.23                  |
+| Rank | Model            | Params     | Avg PSNR (9 rain-only test sets) |
+| ---- | ---------------- | ---------- | -------------------------------- |
+| 1    | Restormer        | 15.3M      | 35.10                            |
+| 2    | NAFNet (Large)   | 116M       | 34.16                            |
+| 3    | NAFNet (Mid)     | 14.3M      | 33.97                            |
+| 4    | Restormer-Small  | 2.3M       | 31.98                            |
+| 5    | UNet (Vanilla)   | 21.5M      | 31.74                            |
+| 6    | NAFNet (Small)   | 1.1M       | 31.15                            |
+| -    | **yolo26_rgb_s** | **12.13M** | **30.95**                        |
+| -    | **yolo26_rgb_n** | **5.25M**  | **30.83**                        |
+| 7    | ResNet50-UNet    | 73.3M      | 30.63                            |
+| 8    | ResNet34-UNet    | 24.5M      | 30.45                            |
+| -    | **yolo26_rgb_l** | **26.59M** | **30.34**                        |
+| -    | **yolo26_rgb_x** | **55.94M** | **30.34**                        |
+| -    | **yolo26_rgb_m** | **22.19M** | **30.25**                        |
+| 9    | ResNet18-UNet    | 14.4M      | 30.23                            |
 
 `n` and `s` beat every ResNet-UNet variant, including ResNet50-UNet at 6x the parameters, on the exact baseline this project set out to test against (a classification-pretrained backbone repurposed as a UNet encoder). `m`/`l`/`x` land in the same tier as ResNet18/34-UNet, not below it, but don't clear `s`, scale doesn't help past `s` under the recipe used here. Restormer/NAFNet still lead by a wide margin, expected for architectures built purely to maximize accuracy with no real-time or CPU-deployment constraint, and not the comparison this project is trying to win, see [Why this exists](#why-this-exists).
-
-Per-scale detail, full 10-set average:
-
-| Scale | Params | PSNR (10-set avg) | SSIM (10-set avg) | PSNR (9 rain-only avg) |
-| ----- | ------ | ----------------- | ----------------- | ---------------------- |
-| n     | 5.25M  | 29.10             | 0.8154            | 30.83                  |
-| s     | 12.13M | 29.21             | 0.8167            | 30.95                  |
-| m     | 22.19M | 28.57             | 0.8107            | 30.25                  |
-| l     | 26.59M | 28.65             | 0.8114            | 30.34                  |
-| x     | 55.94M | 28.65             | 0.8115            | 30.34                  |
 
 Separately, on `n`: the depth-pretrained backbone beats a from-scratch (random-init) backbone on **10/10 test sets**, same recipe, 100 epochs, +0.483 dB PSNR / +0.0063 SSIM on average, real but modest, not a blowout. This is the actual question the pretrained-loading path in [`pretrained.py`](yolo26_rgb/models/pretrained.py) exists to answer.
 
