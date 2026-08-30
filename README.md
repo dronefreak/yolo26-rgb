@@ -30,7 +30,19 @@ Not perfect: up close, faint streaks survive on the worst case (dense rain over 
 
 Deraining, evaluated on [ClearView](https://github.com/dronefreak/clearview)'s 10-test-set protocol (Rain100L/H, Test100/1200/2800, DDN-Data, SPA-Data, RealRain-1k-H/L, AllWeather), the same protocol ClearView uses to rank its own architectures. Ranked by ClearView's own convention, average PSNR across the 9 rain-only sets (AllWeather is an out-of-domain fog stress test every architecture scores ~13.5 dB on regardless of size, and is excluded from ranking for that reason).
 
-The three deployment columns are TensorRT 11.2.1 numbers at 1920x1080, fp16, on an RTX 4070 SUPER (12GB): the baseline figures are ClearView's own published TensorRT benchmark, same GPU/resolution/TensorRT version, so directly comparable rather than a separately curated benchmark; the `yolo26_rgb_*` numbers are ours, measured identically.
+The three deployment columns are TensorRT numbers, batch size 1, one engine build per model. `yolo26_rgb_*` figures are measured on this exact setup; the baseline figures are ClearView's own published TensorRT benchmark, same GPU/TensorRT version, so directly comparable rather than a separately curated benchmark:
+
+| Setting    | Value                                |
+| ---------- | ------------------------------------ |
+| GPU        | NVIDIA GeForce RTX 4070 SUPER (12GB) |
+| Driver     | 580.173.02                           |
+| CUDA       | 12.8                                 |
+| cuDNN      | 9.8.0                                |
+| TensorRT   | 11.2.1                               |
+| OS         | Ubuntu 24.04.4 LTS                   |
+| Resolution | 1920x1080                            |
+| Precision  | fp16                                 |
+| Batch size | 1                                    |
 
 | Rank | Model               | Params     | Avg PSNR (9 rain-only) | Engine (fp16) | Latency (fp16) | Throughput (fp16) |
 | ---- | ------------------- | ---------- | ---------------------- | ------------- | -------------- | ----------------- |
