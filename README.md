@@ -20,6 +20,43 @@ Detection and segmentation backbones are usually evaluated for cross-task transf
 
 n/s/m/l/x variants, each trained and evaluated against the same mixed-domain recipe and a 10-test-set protocol.
 
+## Results
+
+Deraining, evaluated on [ClearView](https://github.com/dronefreak/clearview)'s 10-test-set protocol (Rain100L/H, Test100/1200/2800, DDN-Data, SPA-Data, RealRain-1k-H/L, AllWeather), the same protocol ClearView uses to rank its own architectures. Ranked by ClearView's own convention, average PSNR across the 9 rain-only sets (AllWeather is an out-of-domain fog stress test every architecture scores ~13.5 dB on regardless of size, and is excluded from ranking for that reason):
+
+| Rank | Model            | Params     | Avg PSNR (9 rain-only) |
+| ---- | ---------------- | ---------- | ---------------------- |
+| 1    | Restormer        | 15.3M      | 35.10                  |
+| 2    | NAFNet (Large)   | 116M       | 34.16                  |
+| 3    | NAFNet (Mid)     | 14.3M      | 33.97                  |
+| 4    | Restormer-Small  | 2.3M       | 31.98                  |
+| 5    | UNet (Vanilla)   | 21.5M      | 31.74                  |
+| 6    | NAFNet (Small)   | 1.1M       | 31.15                  |
+| -    | **yolo26_rgb_s** | **12.13M** | **30.95**              |
+| -    | **yolo26_rgb_n** | **5.25M**  | **30.83**              |
+| 7    | ResNet50-UNet    | 73.3M      | 30.63                  |
+| 8    | ResNet34-UNet    | 24.5M      | 30.45                  |
+| -    | **yolo26_rgb_l** | **26.59M** | **30.34**              |
+| -    | **yolo26_rgb_x** | **55.94M** | **30.34**              |
+| -    | **yolo26_rgb_m** | **22.19M** | **30.25**              |
+| 9    | ResNet18-UNet    | 14.4M      | 30.23                  |
+
+`n` and `s` beat every ResNet-UNet variant, including ResNet50-UNet at 6x the parameters, on the exact baseline this project set out to test against (a classification-pretrained backbone repurposed as a UNet encoder). `m`/`l`/`x` land in the same tier as ResNet18/34-UNet, not below it, but don't clear `s`, scale doesn't help past `s` under the recipe used here. Restormer/NAFNet still lead by a wide margin, expected for architectures built purely to maximize accuracy with no real-time or CPU-deployment constraint, and not the comparison this project is trying to win, see [Why this exists](#why-this-exists).
+
+Per-scale detail, full 10-set average:
+
+| Scale | Params | PSNR (10-set avg) | SSIM (10-set avg) | PSNR (9 rain-only avg) |
+| ----- | ------ | ----------------- | ----------------- | ---------------------- |
+| n     | 5.25M  | 29.10             | 0.8154            | 30.83                  |
+| s     | 12.13M | 29.21             | 0.8167            | 30.95                  |
+| m     | 22.19M | 28.57             | 0.8107            | 30.25                  |
+| l     | 26.59M | 28.65             | 0.8114            | 30.34                  |
+| x     | 55.94M | 28.65             | 0.8115            | 30.34                  |
+
+Separately, on `n`: the depth-pretrained backbone beats a from-scratch (random-init) backbone on **10/10 test sets**, same recipe, 100 epochs, +0.483 dB PSNR / +0.0063 SSIM on average, real but modest, not a blowout. This is the actual question the pretrained-loading path in [`pretrained.py`](yolo26_rgb/models/pretrained.py) exists to answer.
+
+Two caveats worth stating plainly rather than smoothing over: AllWeather (the fog stress test, excluded above) sits at ~13.5 dB for every scale, a stark outlier, not a soft weak point; and scale stops helping past `s`, `m`/`l`/`x` land ~0.5-0.6 dB below it despite more parameters, under the exact same training recipe used for all five.
+
 ## Install
 
 ```bash
