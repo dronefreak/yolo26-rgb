@@ -10,9 +10,9 @@ from yolo26_rgb import YOLO26RGB
 model = YOLO26RGB("yolo26n-depth.pt")  # downloads + loads the depth-pretrained backbone automatically
 ```
 
-That's it — `YOLO26RGB(...)` parses the scale (`n`/`s`/`m`/`l`/`x`) out of the checkpoint name, downloads it from Ultralytics' own release assets if it isn't already cached locally, extracts and loads the pretrained backbone/neck, and hands back a ready-to-use model (a plain `nn.Module`, call it directly: `model(image_tensor)`). Same convention as `ultralytics.YOLO("yolo26n-depth.pt")`. Prefer training from scratch instead? `YOLO26RGB("n", pretrained=False)`.
+That's it - `YOLO26RGB(...)` parses the scale (`n`/`s`/`m`/`l`/`x`) out of the checkpoint name, downloads it from Ultralytics' own release assets if it isn't already cached locally, extracts and loads the pretrained backbone/neck, and hands back a ready-to-use model (a plain `nn.Module`, call it directly: `model(image_tensor)`). Same convention as `ultralytics.YOLO("yolo26n-depth.pt")`. Prefer training from scratch instead? `YOLO26RGB("n", pretrained=False)`.
 
-`model(image_tensor)` takes `(B, 3, H, W)` in `[0, 1]` and returns a bare `(B, 3, H, W)` tensor — no dict, no metadata, any input size (internally padded to a multiple of 32 and cropped back). Nothing else to unpack, so it drops straight into an existing restoration pipeline. One thing to know: the output itself is **not** clamped to `[0, 1]` (`RGBHead` predicts a residual correction added to the input, NAFNet/Restormer-style, rather than regressing a bounded image directly) — `.clamp(0, 1)` before saving/displaying as an image.
+`model(image_tensor)` takes `(B, 3, H, W)` in `[0, 1]` and returns a bare `(B, 3, H, W)` tensor - no dict, no metadata, any input size (internally padded to a multiple of 32 and cropped back). Nothing else to unpack, so it drops straight into an existing restoration pipeline. One thing to know: the output itself is **not** clamped to `[0, 1]` (`RGBHead` predicts a residual correction added to the input, NAFNet/Restormer-style, rather than regressing a bounded image directly) - `.clamp(0, 1)` before saving/displaying as an image.
 
 ## Why this exists
 
@@ -26,7 +26,7 @@ n/s/m/l/x variants, each trained and evaluated against the same mixed-domain rec
 pip install -e .
 ```
 
-Only pulls in `torch` — this release is the model itself, nothing else. Training and evaluation for the checkpoints in this repo used an external package, [ClearView](https://github.com/dronefreak/clearview) (data loading, mixed-domain training recipes, the 10-test-set eval protocol), but ClearView is not a dependency of this package and its training/eval scripts aren't included here.
+Only pulls in `torch` - this release is the model itself, nothing else. Training and evaluation for the checkpoints in this repo used an external package, [ClearView](https://github.com/dronefreak/clearview) (data loading, mixed-domain training recipes, the 10-test-set eval protocol), but ClearView is not a dependency of this package and its training/eval scripts aren't included here.
 
 `YOLO26RGB(...)` covers the common case; for lower-level control (downloading a checkpoint without loading it yet, loading into a model you already constructed) see the `yolo26_rgb.models.pretrained` module docstring.
 
@@ -46,7 +46,7 @@ yolo26_rgb/
         └── yolo26-rgb.yaml   # this repo's actual config (same backbone/neck, RGBHead instead of Depth)
 ```
 
-Just the model — this release doesn't include the training/evaluation scripts or mixed-domain configs used to produce the released checkpoints (see [Install](#install)).
+Just the model - this release doesn't include the training/evaluation scripts or mixed-domain configs used to produce the released checkpoints (see [Install](#install)).
 
 `get_model("yolo26_rgb_{n,s,m,l,x}")` builds every scale variant; each runs a forward+backward pass and returns a bare `(B, 3, H, W)` tensor at full input resolution (not a downsampled dict like the original depth head), and round-trips through `state_dict()` in a plain `{"model_state_dict": ...}` checkpoint format.
 

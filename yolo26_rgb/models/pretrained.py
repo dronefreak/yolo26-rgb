@@ -4,7 +4,7 @@ Original code. Three stages, kept as separate functions since they have differen
 dependencies and failure modes:
 
 1. `download_depth_checkpoint`: fetch the raw, full Ultralytics checkpoint (a pickled
-   `ultralytics.nn.tasks.DepthModel`) from Ultralytics' own GitHub release assets —
+   `ultralytics.nn.tasks.DepthModel`) from Ultralytics' own GitHub release assets -
    the same file `ultralytics.YOLO("yolo26n-depth.pt")` auto-downloads. Stdlib-only
    (`urllib`), skips the download if the file already exists locally, matching that
    same download-if-missing behavior rather than re-downloading every run. These
@@ -18,7 +18,7 @@ dependencies and failure modes:
    tensor values, never any of `ultralytics`' own code running. `_StubUnpickler` below
    substitutes a generic `nn.Module` subclass for every class outside the standard
    library/torch/numpy, so the object graph reconstructs correctly (real `torch.nn.Module`
-   methods — `__setstate__`, `state_dict()` — work directly off the restored `__dict__`,
+   methods - `__setstate__`, `state_dict()` - work directly off the restored `__dict__`,
    independent of which class the original object claimed to be) without ever importing
    `ultralytics`. Verified byte-for-byte identical against a real `ultralytics`-based
    extraction before relying on this.
@@ -31,13 +31,13 @@ is the same `nn.Sequential` this repo's `YoloBackboneNeck.model` mirrors, indexe
 way since `yolo26-rgb.yaml`'s backbone/neck is unmodified from `yolo26-depth.yaml`, see
 `_vendor/README.md`). `Yolo26RGB`'s corresponding keys are ``net.model.<i>....``, one prefix
 deeper for the `Yolo26RGB` wrapper. Only layers before the head (the last entry in
-`net.model`, index ``len(net.model) - 1``) are loaded — the head is structurally different
+`net.model`, index ``len(net.model) - 1``) are loaded - the head is structurally different
 between `Depth` and `RGBHead` (see `heads.py`) and always starts randomly initialized.
 
 `Yolo26RGB(weights="yolo26n-depth.pt")` (see `heads.py`) covers the common case by calling
-`get_pretrained_state_dict` + `load_pretrained_backbone` internally. For lower-level control —
+`get_pretrained_state_dict` + `load_pretrained_backbone` internally. For lower-level control -
 downloading a checkpoint without loading it yet, or loading into a model you already
-constructed — use these directly:
+constructed - use these directly:
 
     from yolo26_rgb.models.pretrained import get_pretrained_state_dict, load_pretrained_backbone
     from yolo26_rgb.models.heads import Yolo26RGB
@@ -85,7 +85,7 @@ def download_depth_checkpoint(
 
     Skips the download and returns the existing path if the file is already present
     (checked by filename only, no checksum), matching `YOLO("yolo26n-depth.pt")`'s own
-    download-if-missing behavior — safe to call unconditionally before every use.
+    download-if-missing behavior - safe to call unconditionally before every use.
 
     Args:
         scale: one of "n", "s", "m", "l", "x".
@@ -93,7 +93,7 @@ def download_depth_checkpoint(
         verbose: print progress.
 
     Returns:
-        Path to the local `.pt` file — the raw Ultralytics checkpoint, not a plain
+        Path to the local `.pt` file - the raw Ultralytics checkpoint, not a plain
         state_dict, see `extract_state_dict`.
     """
     dest_dir = Path(dest_dir)

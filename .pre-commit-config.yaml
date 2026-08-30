@@ -29,7 +29,7 @@ repos:
       - id: requirements-txt-fixer
         files: requirements.*\.txt$
 
-  # Ruff — fast Python linter + import sorter + partial security scan
+  # Ruff - fast Python linter + import sorter + partial security scan
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.1.15
     hooks:
@@ -39,14 +39,14 @@ repos:
       - id: ruff-format
         types_or: [python, pyi]
 
-  # Pyupgrade — auto-modernize syntax for Python 3.8+
+  # Pyupgrade - auto-modernize syntax for Python 3.8+
   - repo: https://github.com/asottile/pyupgrade
     rev: v3.15.0
     hooks:
       - id: pyupgrade
         args: [--py38-plus]
 
-  # Pydocstyle — enforce docstring conventions (Google style)
+  # Pydocstyle - enforce docstring conventions (Google style)
   - repo: https://github.com/PyCQA/pydocstyle
     rev: 6.3.0
     hooks:
@@ -56,7 +56,7 @@ repos:
           - --add-ignore=D100,D101,D102,D103,D104,D105,D107
         exclude: ^(tests/|setup\.py|docs/)
 
-  # MyPy — static type checking (strict mode)
+  # MyPy - static type checking (strict mode)
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.8.0
     hooks:
@@ -75,7 +75,7 @@ repos:
           ]
         exclude: ^(tests/|setup\.py|docs/|yolo26_rgb/models/_vendor/)
 
-  # Prettier — format Markdown, YAML, JSON
+  # Prettier - format Markdown, YAML, JSON
   - repo: https://github.com/pre-commit/mirrors-prettier
     rev: v3.1.0
     hooks:

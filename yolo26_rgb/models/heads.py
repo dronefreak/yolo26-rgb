@@ -32,7 +32,7 @@ changes is everything after that:
   batches on large crops, and BN's batch-dependent running stats get noisy
   there in a way LayerNorm (normalizes per-sample, over channels) doesn't,
   see NAFNet/Restormer's own choice of the same. Deliberately scoped to
-  RGBHead only, not the vendored backbone/neck `Conv` (still BatchNorm) —
+  RGBHead only, not the vendored backbone/neck `Conv` (still BatchNorm) -
   keeps the backbone/neck loadable from a YOLO26 pretrained checkpoint (see
   `yolo26_rgb.models.pretrained`), and, more generally, keeps this repo's
   base architecture on BatchNorm, the choice that stays deployment-friendly
@@ -40,7 +40,7 @@ changes is everything after that:
   LayerNorm structurally can't) and compatible with the whole YOLO26
   pretrained zoo (detect/segment/pose/OBB/classify, not just depth), not
   just this one task. A LayerNorm-everywhere variant was prototyped
-  (2026-08-18) and removed (2026-08-19) to keep the base package simple —
+  (2026-08-18) and removed (2026-08-19) to keep the base package simple -
   see ROADMAP.md's open questions if reconsidering it.
 """
 
@@ -270,7 +270,7 @@ class Yolo26RGB(nn.Module):
 
         Args:
             weights: shorthand for loading a depth-pretrained backbone, e.g.
-                "yolo26n-depth.pt" (or just "n") — parses the scale out and, if
+                "yolo26n-depth.pt" (or just "n") - parses the scale out and, if
                 `pretrained` is True, downloads/extracts/loads that checkpoint's
                 backbone/neck automatically (see `yolo26_rgb.models.pretrained`),
                 mirroring `ultralytics.YOLO("yolo26n-depth.pt")`'s own convention.
